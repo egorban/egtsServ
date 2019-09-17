@@ -1,16 +1,12 @@
-package main
+package egtsserv
 
 import (
-	"flag"
 	"github.com/ashirko/navprot/pkg/egts"
 	"log"
 	"net"
 )
 
-func main() {
-	var listenAddress string
-	flag.StringVar(&listenAddress, "l", "", "listen address (e.g. 'localhost:8080')")
-	flag.Parse()
+func Start(listenAddress string) {
 	if listenAddress == "" {
 		listenAddress = "127.0.0.1:8080"
 	}
