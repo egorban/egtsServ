@@ -2,7 +2,7 @@ package main
 
 import (
 	"flag"
-	"github.com/gorban/egtsServ/pkg/egtsserv"
+	"github.com/egorban/egtsServ/pkg/egtsserv"
 )
 
 func main() {
