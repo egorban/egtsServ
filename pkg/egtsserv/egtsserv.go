@@ -4,11 +4,18 @@ import (
 	"github.com/ashirko/navprot/pkg/egts"
 	"log"
 	"net"
+	"sync"
+)
+
+var (
+	stopChan chan bool
+	running  bool
+	muRun    sync.Mutex
 )
 
 func Start(listenAddress string) {
 	if listenAddress == "" {
-		listenAddress = "127.0.0.1:8080"
+		listenAddress = "127.0.0.1:8081"
 	}
 	l, err := net.Listen("tcp", listenAddress)
 	log.Printf("listening... %s", listenAddress)
@@ -16,16 +23,36 @@ func Start(listenAddress string) {
 		log.Printf("error while listening: %s", err)
 		return
 	}
-	connNo := uint64(1)
-	for {
-		c, err := l.Accept()
-		if err != nil {
-			log.Printf("error while accepting: %s", err)
+	running = true
+	defer l.Close()
+	stopChan = make(chan bool)
+	go func() {
+		connNo := uint64(1)
+		for {
+			log.Printf("wait accept")
+			c, err := l.Accept()
+			if err != nil {
+				log.Printf("error while accepting: %s", err)
+				muRun.Lock()
+				if !running {
+					return
+				}
+				muRun.Unlock()
+			}
+			defer c.Close()
+			log.Printf("accepted connection %d (%s <-> %s)", connNo, c.RemoteAddr(), c.LocalAddr())
+			go handleConnection(c, connNo)
+			connNo++
 		}
-		log.Printf("accepted connection %d (%s <-> %s)", connNo, c.RemoteAddr(), c.LocalAddr())
-		go handleConnection(c, connNo)
-		connNo++
-	}
+	}()
+	<-stopChan
+	muRun.Lock()
+	running = false
+	muRun.Unlock()
+}
+
+func Stop() {
+	stopChan <- true
 }
 
 func handleConnection(conn net.Conn, connNo uint64) {
