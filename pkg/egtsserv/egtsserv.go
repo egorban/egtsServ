@@ -4,28 +4,36 @@ import (
 	"github.com/ashirko/navprot/pkg/egts"
 	"log"
 	"net"
-	"sync"
+	"time"
 )
+
+type Result struct {
+	numConn    uint64
+	numReceive int
+}
 
 var (
-	stopChan chan bool
-	running  bool
-	muRun    sync.Mutex
+	newConnChan chan uint64
+	closeConn   chan Result
 )
 
-func Start(listenAddress string) {
-	if listenAddress == "" {
-		listenAddress = "127.0.0.1:8081"
-	}
+const (
+	defaultBufferSize = 1024
+	writeTimeout      = 10 * time.Second
+	readTimeout       = 180 * time.Second
+)
+
+func Start(listenPort string, numPackets int) {
+	listenAddress := "localhost:" + listenPort
 	l, err := net.Listen("tcp", listenAddress)
-	log.Printf("listening... %s", listenAddress)
 	if err != nil {
 		log.Printf("error while listening: %s", err)
 		return
 	}
-	running = true
 	defer l.Close()
-	stopChan = make(chan bool)
+	log.Printf("egts server start listening %s", listenAddress)
+	newConnChan = make(chan uint64)
+	closeConn = make(chan Result)
 	go func() {
 		connNo := uint64(1)
 		for {
@@ -33,34 +41,50 @@ func Start(listenAddress string) {
 			c, err := l.Accept()
 			if err != nil {
 				log.Printf("error while accepting: %s", err)
-				muRun.Lock()
-				if !running {
-					return
-				}
-				muRun.Unlock()
+				return
 			}
 			defer c.Close()
 			log.Printf("accepted connection %d (%s <-> %s)", connNo, c.RemoteAddr(), c.LocalAddr())
-			go handleConnection(c, connNo)
+			go handleConnection(c, connNo, numPackets)
+			newConnChan <- connNo
 			connNo++
 		}
 	}()
-	<-stopChan
-	muRun.Lock()
-	running = false
-	muRun.Unlock()
+	results := waitStop()
+	for _, r := range results {
+		log.Printf("For connection %d: number receive packets = %d",
+			r.numConn, r.numReceive)
+	}
 }
 
-func Stop() {
-	stopChan <- true
+func waitStop() []Result {
+	numsConn := uint64(0)
+	results := make([]Result, 0)
+	for {
+		select {
+		case <-newConnChan:
+			numsConn++
+		case res := <-closeConn:
+			results = append(results, res)
+			numsConn--
+			if numsConn == 0 {
+				return results
+			}
+		}
+	}
 }
 
-func handleConnection(conn net.Conn, connNo uint64) {
+func handleConnection(conn net.Conn, connNo uint64, numPacketsToReceive int) {
+	res := Result{connNo, 0}
 	var ansPID uint16
 	var ansRID uint16
 	var restBuf []byte
-	for {
-		var buf [1024]byte
+	for res.numReceive < numPacketsToReceive {
+		err := conn.SetReadDeadline(time.Now().Add(readTimeout))
+		if err != nil {
+			log.Printf("can't set read deadline %s", err)
+		}
+		var buf [defaultBufferSize]byte
 		n, err := conn.Read(buf[:])
 		if err != nil {
 			log.Printf("can't get data from connection %d: %v", connNo, err)
@@ -72,30 +96,40 @@ func handleConnection(conn net.Conn, connNo uint64) {
 			restBuf, err = egtsPack.Parse(restBuf)
 			if err != nil {
 				log.Printf(" error while parsing EGTS: %v", err)
-				restBuf = []byte{}
 				break
 			}
+			log.Printf("egts pack: %s", egtsPack.String())
+			res.numReceive++
 			responsePack, err := formResponse(egtsPack, ansPID, ansRID)
 			if err != nil {
 				log.Printf(" error while form response: %v", err)
-				restBuf = []byte{}
 				break
 			}
+			_, err = egtsPack.Parse(responsePack)
+			if err != nil {
+				log.Printf(" error while parsing response EGTS: %v", err)
+				break
+			}
+			log.Printf("egts response pack: %s", egtsPack.String())
 			ansPID = (ansPID + 1) & 0xffff
 			ansRID = (ansRID + 1) & 0xffff
+			err = conn.SetWriteDeadline(time.Now().Add(writeTimeout))
+			if err != nil {
+				log.Printf("can't set write deadline %s", err)
+			}
 			_, err = conn.Write(responsePack)
 			if err != nil {
 				log.Printf(" error while write response to %d: %v", connNo, err)
-				restBuf = []byte{}
 				break
 			}
-			writeToDB(egtsPack)
 		}
 	}
+	time.Sleep(5 * time.Second)
 	err := conn.Close()
 	if err != nil {
 		log.Printf(" error while close connection %d: %v", connNo, err)
 	}
+	closeConn <- res
 }
 
 func formResponse(egtsPack *egts.Packet, ansPID uint16, ansRID uint16) (responsePack []byte, err error) {
@@ -129,8 +163,4 @@ func formResponse(egtsPack *egts.Packet, ansPID uint16, ansRID uint16) (response
 	}
 	responsePack, err = packetData.Form()
 	return
-}
-
-func writeToDB(egtsPack *egts.Packet) {
-	log.Printf("egts pack: %s", egtsPack.String())
 }
