@@ -31,13 +31,14 @@ func Start(listenPort string, numPackets int) {
 		return
 	}
 	defer l.Close()
-	log.Printf("egts server start listening %s", listenAddress)
+	log.Printf("EGTS server was started. Listen address: %v; Number packets to receive: %v",
+		listenAddress, numPackets)
 	newConnChan = make(chan uint64)
 	closeConn = make(chan Result)
 	go func() {
 		connNo := uint64(1)
 		for {
-			log.Printf("wait accept")
+			log.Printf("wait accept...")
 			c, err := l.Accept()
 			if err != nil {
 				log.Printf("error while accepting: %s", err)
@@ -51,6 +52,7 @@ func Start(listenPort string, numPackets int) {
 		}
 	}()
 	results := waitStop()
+	log.Printf("EGTS server was stopped")
 	for _, r := range results {
 		log.Printf("For connection %d: number receive packets = %d",
 			r.numConn, r.numReceive)
@@ -98,7 +100,7 @@ func handleConnection(conn net.Conn, connNo uint64, numPacketsToReceive int) {
 				log.Printf(" error while parsing EGTS: %v", err)
 				break
 			}
-			log.Printf("egts pack: %s", egtsPack.String())
+			log.Printf("receive egts packet: %s", egtsPack.String())
 			res.numReceive++
 			responsePack, err := formResponse(egtsPack, ansPID, ansRID)
 			if err != nil {
@@ -110,18 +112,14 @@ func handleConnection(conn net.Conn, connNo uint64, numPacketsToReceive int) {
 				log.Printf(" error while parsing response EGTS: %v", err)
 				break
 			}
-			log.Printf("egts response pack: %s", egtsPack.String())
 			ansPID = (ansPID + 1) & 0xffff
 			ansRID = (ansRID + 1) & 0xffff
-			err = conn.SetWriteDeadline(time.Now().Add(writeTimeout))
-			if err != nil {
-				log.Printf("can't set write deadline %s", err)
-			}
-			_, err = conn.Write(responsePack)
+			err = send(conn, responsePack)
 			if err != nil {
 				log.Printf(" error while write response to %d: %v", connNo, err)
 				break
 			}
+			log.Printf("send reply: %s", egtsPack.String())
 		}
 	}
 	time.Sleep(5 * time.Second)
@@ -163,4 +161,13 @@ func formResponse(egtsPack *egts.Packet, ansPID uint16, ansRID uint16) (response
 	}
 	responsePack, err = packetData.Form()
 	return
+}
+
+func send(conn net.Conn, packet []byte) error {
+	err := conn.SetWriteDeadline(time.Now().Add(writeTimeout))
+	if err != nil {
+		return err
+	}
+	_, err = conn.Write(packet)
+	return err
 }
