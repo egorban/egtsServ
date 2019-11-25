@@ -5,6 +5,7 @@ import (
 	"log"
 	"net"
 	"time"
+	"sync"
 )
 
 type Result struct {
@@ -13,6 +14,8 @@ type Result struct {
 }
 
 var (
+    running bool
+    muRun    sync.Mutex
 	newConnChan chan uint64
 	closeConn   chan Result
 )
@@ -30,6 +33,7 @@ func Start(listenPort string, numPackets int) {
 		log.Printf("error while listening: %s", err)
 		return
 	}
+	running = true
 	defer l.Close()
 	log.Printf("EGTS server was started. Listen address: %v; Number packets to receive: %v",
 		listenAddress, numPackets)
@@ -41,6 +45,11 @@ func Start(listenPort string, numPackets int) {
 			log.Printf("wait accept...")
 			c, err := l.Accept()
 			if err != nil {
+			    muRun.Lock()
+                if !running {
+                    return
+                }
+                muRun.Unlock()
 				log.Printf("error while accepting: %s", err)
 				return
 			}
@@ -52,6 +61,9 @@ func Start(listenPort string, numPackets int) {
 		}
 	}()
 	results := waitStop()
+	muRun.Lock()
+    running = false
+    muRun.Unlock()
 	log.Printf("EGTS server was stopped")
 	for _, r := range results {
 		log.Printf("For connection %d: number receive packets = %d",
