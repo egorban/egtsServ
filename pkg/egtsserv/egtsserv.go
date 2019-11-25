@@ -4,8 +4,8 @@ import (
 	"github.com/ashirko/navprot/pkg/egts"
 	"log"
 	"net"
-	"time"
 	"sync"
+	"time"
 )
 
 type Result struct {
@@ -14,8 +14,8 @@ type Result struct {
 }
 
 var (
-    running bool
-    muRun    sync.Mutex
+	running     bool
+	muRun       sync.Mutex
 	newConnChan chan uint64
 	closeConn   chan Result
 )
@@ -45,11 +45,12 @@ func Start(listenPort string, numPackets int) {
 			log.Printf("wait accept...")
 			c, err := l.Accept()
 			if err != nil {
-			    muRun.Lock()
-                if !running {
-                    return
-                }
-                muRun.Unlock()
+				muRun.Lock()
+				if !running {
+					muRun.Unlock()
+					return
+				}
+				muRun.Unlock()
 				log.Printf("error while accepting: %s", err)
 				return
 			}
@@ -62,11 +63,15 @@ func Start(listenPort string, numPackets int) {
 	}()
 	results := waitStop()
 	muRun.Lock()
-    running = false
-    muRun.Unlock()
-	log.Printf("EGTS server was stopped")
+	running = false
+	muRun.Unlock()
+	log.Printf("EGTS server has completed work")
 	for _, r := range results {
-		log.Printf("For connection %d: number receive packets = %d",
+		endingReceive := ""
+		if r.numReceive > 1 {
+			endingReceive = "s"
+		}
+		log.Printf("For connection %d: received %d data packet"+endingReceive,
 			r.numConn, r.numReceive)
 	}
 }
