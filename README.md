@@ -1,4 +1,4 @@
-Тестовый сервер egts для tcpmirror
+Эмулятор egts сервера для tcpmirror
 
 example run: 
 go run main.go -p "9002"
