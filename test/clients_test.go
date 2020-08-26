@@ -1,10 +1,11 @@
 package test
 
 import (
-	"github.com/ashirko/navprot/pkg/egts"
 	"net"
 	"reflect"
 	"testing"
+
+	"github.com/egorban/navprot/pkg/egts"
 )
 
 func TestClient(t *testing.T) {

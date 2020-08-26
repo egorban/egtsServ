@@ -1,10 +1,11 @@
 package egtsserv
 
 import (
-	"github.com/ashirko/navprot/pkg/egts"
 	"log"
 	"net"
 	"sync"
+
+	"github.com/egorban/navprot/pkg/egts"
 )
 
 var (
@@ -72,13 +73,11 @@ func handleConnection(conn net.Conn, connNo uint64) {
 			restBuf, err = egtsPack.Parse(restBuf)
 			if err != nil {
 				log.Printf(" error while parsing EGTS: %v", err)
-				restBuf = []byte{}
 				break
 			}
 			responsePack, err := formResponse(egtsPack, ansPID, ansRID)
 			if err != nil {
 				log.Printf(" error while form response: %v", err)
-				restBuf = []byte{}
 				break
 			}
 			ansPID = (ansPID + 1) & 0xffff
@@ -86,7 +85,6 @@ func handleConnection(conn net.Conn, connNo uint64) {
 			_, err = conn.Write(responsePack)
 			if err != nil {
 				log.Printf(" error while write response to %d: %v", connNo, err)
-				restBuf = []byte{}
 				break
 			}
 			writeToDB(egtsPack)
