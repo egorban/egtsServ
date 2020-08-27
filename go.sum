@@ -1,3 +1,5 @@
 github.com/ashirko/navprot v1.4.3/go.mod h1:vVyXreMz5OioVr5XAbWqd8Kb8XtgOEP1oWymrdgoiKM=
 github.com/egorban/navprot v1.4.5 h1:b1NkvH6CMhwAreryACKrKymR2FoJMgkBJKqjSVcxrf4=
 github.com/egorban/navprot v1.4.5/go.mod h1:TirvQBqQv2FcYWSO6BA7GldjENmLTe5tcTfSzkDVa9k=
+github.com/egorban/navprot v1.4.8 h1:qcT3lgCgwi9Qf7T9uSF8/re3x0riRNzqOh8af5Nazno=
+github.com/egorban/navprot v1.4.8/go.mod h1:WAXCJ2yLrCP/4XLGzuQ0eKrIcU8awBKuMwFZDZeVqzU=
