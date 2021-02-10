@@ -1,10 +1,11 @@
 package egtsserv
 
 import (
-	"github.com/ashirko/navprot/pkg/egts"
 	"log"
 	"net"
 	"time"
+
+	"github.com/ashirko/navprot/pkg/egts"
 )
 
 const (
@@ -13,8 +14,7 @@ const (
 	readTimeout       = 180 * time.Second
 )
 
-func Start(listenPort string) {
-	listenAddress := "localhost:" + listenPort
+func Start(listenAddress string) {
 	l, err := net.Listen("tcp", listenAddress)
 	if err != nil {
 		log.Printf("error while listening: %s", err)
