@@ -27,7 +27,7 @@ const (
 )
 
 func Start(listenPort string, numPackets int) {
-	listenAddress := "localhost:" + listenPort
+	listenAddress := listenPort
 	l, err := net.Listen("tcp", listenAddress)
 	if err != nil {
 		log.Printf("error while listening: %s", err)
