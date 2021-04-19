@@ -156,7 +156,7 @@ func waitResult() {
 			totalStat.numData = totalStat.numData + stat.numData
 			totalStat.numReply = totalStat.numReply + stat.numReply
 		case <-ticker.C:
-			log.Printf("last minute: receive data %v, send reply %v", totalStat.numData, totalStat.numData)
+			log.Printf("last minute: receive data %v, send reply %v", totalStat.numData, totalStat.numReply)
 			totalStat.numData = 0
 			totalStat.numReply = 0
 		}
